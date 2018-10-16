@@ -605,7 +605,7 @@ def main ():
 
     # Train and val
     prev_prec = bit_width
-    register_hooks(args.arch, args.depth, model_quant)
+    # register_hooks(args.arch, args.depth, model_quant)
     train_loss = 0 
     for epoch in range(start_epoch, args.epochs):
         prev_prec, max_gd = update_hyperparameters(optimizer, epoch, metaParamDict, train_loss, mean_gd, max_gd, loss_sd, loss_mean, pchange_loss)
