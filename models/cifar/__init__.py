@@ -61,9 +61,9 @@ Densenet-161             22.35           6.20
 .. _DenseNet: https://arxiv.org/abs/1608.06993
 """
 
-# from .alexnet import *
+from .alexnet import *
 from .alexnet_profiling import *
-from .alexnet_pyinn import *
+# from .alexnet_pyinn import *
 from .vgg import *
 from .vgg_profiling import *
 from .resnet import *
