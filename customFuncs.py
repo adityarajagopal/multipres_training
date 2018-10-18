@@ -8,26 +8,19 @@ from torch.nn.modules.module import Module
 from torch.nn.parameter import Parameter 
 from torch.utils.dlpack import to_dlpack, from_dlpack
 
-def correlate(ip, weight, padding, stride, corner_case=False, op_channels=None) : 
-    # unfold tensors
-    kernel_size = weight.size(2)
-    if corner_case : 
-        print('here')
-        o_channels = op_channels
-        ip_unfold = torch.nn.functional.unfold(ip, (kernel_size, kernel_size), padding=padding, stride=stride)
-        w_unfold = weight.unsqueeze(1).expand(-1, o_channels, -1, -1, -1)
-        w_unfold = w_unfold.view(w_unfold.size(0), w_unfold.size(1), -1)
-    else :
-        o_channels = weight.size(0)
-        ip_unfold = torch.nn.functional.unfold(ip, (kernel_size, kernel_size), padding=padding, stride=stride)
-        w_unfold = weight.view(o_channels, -1) 
+def correlate(ip, weight, padding, stride, kernel_size, corner_case=False, op_channels=None) : 
+    if corner_case:
+        w_transform = torch.flip(weight, torch.arange(weight.dim()).tolist())
+    o_channels = weight.size(0)
+    ip_unfold = torch.nn.functional.unfold(ip, (kernel_size, kernel_size), padding=padding, stride=stride)
+    w_unfold = weight.view(o_channels, -1) 
     
     # print("kernel_size :", kernel_size)
     # print("o_channels :", o_channels)
     # print("input :", ip.size())
     # print("input_unfold :", ip_unfold.size())
     # print("wegiht :", weight.size())
-    # print("weight_unfold :", w_unfold.size())
+    print("weight_unfold :", w_unfold.size())
 
     # cupy conversion 
     ip_cupy = cp.fromDlpack(to_dlpack(ip_unfold)).astype('int8')
@@ -37,15 +30,9 @@ def correlate(ip, weight, padding, stride, corner_case=False, op_channels=None) 
     # print(w_cupy.shape)
 
     # multiplication in cupy 
-    if corner_case : 
-        op = cp.matmul(cp.transpose(ip_cupy, (0,2,1)), cp.transpose(w_cupy, (0,2,1)))
-        op = cp.transpose(op, (0,2,1))
-        print(op.shape)
-        sys.exit()
-    else : 
-        op = cp.matmul(cp.transpose(ip_cupy, (0,2,1)), cp.transpose(w_cupy))
-        op = cp.transpose(op, (0,2,1))
-        print(op.shape)
+    op = cp.matmul(cp.transpose(ip_cupy, (0,2,1)), cp.transpose(w_cupy))
+    op = cp.transpose(op, (0,2,1))
+    print(op.shape)
 
 
     return op 
@@ -53,7 +40,8 @@ def correlate(ip, weight, padding, stride, corner_case=False, op_channels=None) 
 class Conv2dFunc(Function) : 
     @staticmethod
     def forward(context, ip, weight, bias, stride, padding, dilation, kernel) : 
-        op = correlate(ip, weight, padding, stride)        
+        kernel = weight.size(2)
+        op = correlate(ip, weight, padding, stride, kernel)        
         
         bias_repeat = bias.repeat(op.shape[0], op.shape[2]).view(op.shape[0], op.shape[2], bias.shape[0])
         bias_cupy = cp.fromDlpack(to_dlpack(bias_repeat)).astype('int8')
@@ -72,6 +60,7 @@ class Conv2dFunc(Function) :
 
         op_dim = (o_dim_x, o_dim_y)
         op_fold = torch.nn.functional.fold(op_tensor, op_dim, (1,1))
+        print("output size:\t\t", op_fold.size())
 
         context.save_for_backward(ip, weight, bias, Variable(torch.Tensor([padding]).type(torch.cuda.IntTensor), requires_grad=False), Variable(torch.tensor([stride]).type(torch.cuda.IntTensor), requires_grad=False), Variable(torch.Tensor([kernel]).type(torch.cuda.IntTensor)))
         
@@ -86,9 +75,12 @@ class Conv2dFunc(Function) :
         kernel = int(kernel.data.tolist()[0])
 
         # grad wrt weight matrix 
-        grad_wrt_weight = correlate(ip, grad_wrt_op, padding, stride, True, weight.size(0))
+        # print(ip.shape)
+        grad_wrt_weight = correlate(grad_wrt_op, weight, padding, stride, kernel, True, weight.size(0))
         grad_wrt_weight_tensor = from_dlpack(grad_wrt_weight.toDlpack()).float()
         grad_wrt_weight_tensor = torch.nn.functional.fold(grad_wrt_weight_tensor, (weight.size()[2], weight.size()[3]), (1,1))
+        print(grad_wrt_weight_tensor.size())
+        sys.exit()
 
         # grad wrt input matrix 
         grad_wrt_input = correlate(grad_wrt_op, torch.flip(torch.flip(weight, [0]), [1]), padding, stride) 

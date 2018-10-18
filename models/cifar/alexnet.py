@@ -41,7 +41,10 @@ class AlexNet(nn.Module):
         # print("input size : ", x.size())
         # print("weight size : ", self.conv1.weight.size())
         # print("bias size : ", self.conv1.bias.size())
+        # print("conv1")
+        # print("input size : ", x.size())
         x = self.conv1(x)
+        # print("output size : ", x.size())
         
         x = self.relu(x)
         
@@ -92,7 +95,11 @@ class AlexNet(nn.Module):
         
         x = self.relu(x)
         
+        # print("conv5")
+        # print("input size : ", x.size())
         x = self.conv5(x) 
+        # print("output size : ", x.size())
+        # print("weight size : ", self.conv5.weight.size())
         
         x = self.relu(x)
         

@@ -651,6 +651,7 @@ def main ():
             if metaParamDict['quantised'] : 
                 quantiser.quantise_weights(model_quant, convLayers, bit_width) 
                 train(model_quant, list(model.parameters()), criterion, optimizer, inputs, targets, metaParamDict, logParamDict)
+                sys.exit()
                 log_model = model_quant
             else : 
                 train(model, list(model.parameters()), criterion, optimizer, inputs, targets, metaParamDict, logParamDict)
