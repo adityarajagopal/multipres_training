@@ -51,8 +51,8 @@ class Conv2dFunc(Function) :
     @staticmethod
     def forward(context, ip, weight, bias, stride, padding, dilation, kernel) : 
         kernel = weight.size(2)
-        # op = correlate(ip, weight, padding, stride, kernel)        
-        op = cuda_correlate(ip, weight, padding, stride, kernel)        
+        op = correlate(ip, weight, padding, stride, kernel)        
+        # op = cuda_correlate(ip, weight, padding, stride, kernel)        
         
         bias_repeat = bias.repeat(op.shape[0], op.shape[2]).view(op.shape[0], op.shape[2], bias.shape[0])
         bias_cupy = cp.fromDlpack(to_dlpack(bias_repeat)).astype('int8')
